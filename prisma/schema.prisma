@@ -1,0 +1,111 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model customers {
+  customer_id Int       @id @default(autoincrement())
+  first_name  String?   @db.VarChar(60)
+  last_name   String?   @db.VarChar(60)
+  email       String?   @unique(map: "email") @db.VarChar(120)
+  phone       String?   @db.VarChar(20)
+  created_at  DateTime? @default(now()) @db.DateTime(0)
+  sales       sales[]
+}
+
+model employees {
+  employee_id Int       @id @default(autoincrement())
+  store_id    Int?
+  first_name  String?   @db.VarChar(60)
+  last_name   String?   @db.VarChar(60)
+  email       String?   @unique(map: "email") @db.VarChar(120)
+  hired_at    DateTime? @default(now()) @db.DateTime(0)
+  stores      stores?   @relation(fields: [store_id], references: [store_id], onDelete: NoAction, onUpdate: NoAction, map: "employees_ibfk_1")
+  sales       sales[]
+
+  @@index([store_id], map: "store_id")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model products {
+  product_id     Int            @id @default(autoincrement())
+  name           String         @db.VarChar(120)
+  description    String?        @db.VarChar(255)
+  price          Decimal?       @db.Decimal(10, 2)
+  stock_quantity Int?
+  created_at     DateTime?      @default(now()) @db.DateTime(0)
+  promotions     promotions[]
+  sale_details   sale_details[]
+
+  @@index([name], map: "idx_products_name")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model promotions {
+  promo_id     Int                    @id @default(autoincrement())
+  name         String?                @db.VarChar(120)
+  promo_type   promotions_promo_type?
+  product_id   Int?
+  min_qty      Int?
+  discount_pct Decimal?               @db.Decimal(5, 2)
+  start_date   DateTime?              @db.Date
+  end_date     DateTime?              @db.Date
+  products     products?              @relation(fields: [product_id], references: [product_id], onDelete: NoAction, onUpdate: NoAction, map: "promotions_ibfk_1")
+
+  @@index([product_id], map: "product_id")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model sale_details {
+  detail_id  BigInt    @id @default(autoincrement())
+  sale_id    BigInt?
+  product_id Int?
+  quantity   Int?
+  unit_price Decimal?  @db.Decimal(10, 2)
+  sales      sales?    @relation(fields: [sale_id], references: [sale_id], onDelete: NoAction, onUpdate: NoAction, map: "sale_details_ibfk_1")
+  products   products? @relation(fields: [product_id], references: [product_id], onDelete: NoAction, onUpdate: NoAction, map: "sale_details_ibfk_2")
+
+  @@index([sale_id], map: "idx_sale_details_sale")
+  @@index([product_id], map: "product_id")
+}
+
+model sales {
+  sale_id      BigInt         @id @default(autoincrement())
+  store_id     Int?
+  customer_id  Int?
+  employee_id  Int?
+  total        Decimal?       @db.Decimal(12, 2)
+  tax          Decimal?       @db.Decimal(12, 2)
+  discount     Decimal?       @default(0.00) @db.Decimal(12, 2)
+  paid         Boolean?
+  sale_date    DateTime?      @default(now()) @db.DateTime(0)
+  sale_details sale_details[]
+  stores       stores?        @relation(fields: [store_id], references: [store_id], onDelete: NoAction, onUpdate: NoAction, map: "sales_ibfk_1")
+  customers    customers?     @relation(fields: [customer_id], references: [customer_id], onDelete: NoAction, onUpdate: NoAction, map: "sales_ibfk_2")
+  employees    employees?     @relation(fields: [employee_id], references: [employee_id], onDelete: NoAction, onUpdate: NoAction, map: "sales_ibfk_3")
+
+  @@index([customer_id], map: "customer_id")
+  @@index([employee_id], map: "employee_id")
+  @@index([store_id, sale_date], map: "idx_sales_store_date")
+}
+
+model stores {
+  store_id  Int         @id @default(autoincrement())
+  name      String?     @db.VarChar(80)
+  city      String?     @db.VarChar(80)
+  state     String?     @db.VarChar(80)
+  is_active Boolean?    @default(true)
+  employees employees[]
+  sales     sales[]
+}
+
+enum promotions_promo_type {
+  GENERAL
+  PRODUCT
+  QTY
+}
